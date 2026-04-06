@@ -1,0 +1,10 @@
+scapy
+pyshark
+nfstream
+yara-python
+python-evtx
+pandas
+reportlab
+tqdm
+python-dotenv
+pefile

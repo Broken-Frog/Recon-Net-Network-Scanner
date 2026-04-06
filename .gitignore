@@ -1,0 +1,31 @@
+# environments
+env/
+venv/
+
+# python
+__pycache__/
+*.pyc
+
+# logs & outputs
+output/
+*.log
+*.json
+*.pdf
+
+# network data
+*.pcap
+*.pcapng
+*.zeek
+
+# large artifacts
+*.pkl
+*.model
+
+# system
+.DS_Store
+
+*.zip
+recording/
+UI/*.zip
+UI/
+UI_atlas-2026-04-03_22.40.33
