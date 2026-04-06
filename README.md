@@ -40,4 +40,4 @@ cd atlas-network-forensics
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python main.py samples/DoS-GoldenEye_attack.pcap
+python main.py <pcap file>      
