@@ -1,6 +1,6 @@
-# ATLAS – Network Forensics Analysis Platform
+# Recon-Net Network Forensics Analysis Platform
 
-**ATLAS** is a powerful, open-source network forensics platform designed for investigators, security analysts, and digital forensics professionals.
+**Recon-Net** is a powerful, open-source network forensics platform designed for investigators, security analysts, and digital forensics professionals.
 
 It allows you to upload PCAP files and automatically performs deep analysis to detect attacks, reconstruct network activity, extract artifacts, and generate court-ready forensic reports.
 
