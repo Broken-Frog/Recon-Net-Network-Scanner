@@ -35,7 +35,7 @@ It allows you to upload PCAP files and automatically performs deep analysis to d
 ### Getting Started
 
 ```bash
-git clone https://github.com/yourusername/atlas-network-forensics.git
+git clone https://github.com/Broken-Frog/Recon-Net-Network-Scanner.git
 cd atlas-network-forensics
 python -m venv venv
 source venv/bin/activate
