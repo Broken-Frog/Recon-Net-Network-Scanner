@@ -5,7 +5,7 @@ from .features_extractor import FeatureExtractor
 from tqdm import tqdm
 
 def build_flows_and_extract_features(pcap_path):
-    print("🔧 Building flows with packet-level details for FeatureExtractor...")
+    print(" Building flows with packet-level details for FeatureExtractor...")
     pcap_path = Path(pcap_path)
     packets = rdpcap(str(pcap_path))
     

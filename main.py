@@ -13,10 +13,10 @@ if __name__ == "__main__":
     result = start_network_scan(file_path)
     
     if result is None:
-        print("❌ Error: Scan function returned None. Check scan_manager.py")
+        print(" Error: Scan function returned None. Check scan_manager.py")
         sys.exit(1)
     
     if isinstance(result, dict) and "error" in result:
-        print(f"❌ Scan Error: {result['error']}")
+        print(f" Scan Error: {result['error']}")
     else:
-        print("\n🎉 Scan completed successfully!")
+        print("\n Scan completed successfully!")

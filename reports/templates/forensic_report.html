@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Recom-Net Report - {{ scan_id }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f8fafc; color: #1e2937; line-height: 1.6; }
+        h1 { color: #1e40af; text-align: center; }
+        h2 { color: #334155; border-bottom: 3px solid #e2e8f0; padding-bottom: 10px; }
+        .section { background: white; padding: 25px; margin: 25px 0; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 12px; border: 1px solid #cbd5e1; text-align: left; }
+        th { background: #1e40af; color: white; }
+        .critical { color: #b91c1c; font-weight: bold; }
+        .flow-table td { font-size: 0.95em; }
+    </style>
+</head>
+<body>
+    <h1>Recom-Net NETWORK FORENSICS REPORT</h1>
+    <p style="text-align:center;"><strong>Case ID:</strong> {{ scan_id }} &nbsp;&nbsp;|&nbsp;&nbsp; Generated: {{ generated_time }}</p>
+
+    <!-- Executive Summary -->
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <p><strong>Risk Level:</strong> <span class="critical">{{ results.executiveSummary.riskLevel }}</span></p>
+        <p><strong>Risk Score:</strong> {{ results.risk_score }}/100</p>
+        <p><strong>YARA Matches:</strong> {{ yara_count }}</p>
+        <p><strong>Total Flows:</strong> {{ results.total_flows }}</p>
+        <p><strong>Total Packets:</strong> {{ results.analysis.basic.total_packets }}</p>
+    </div>
+
+    <!-- Flooding Attacks -->
+    <div class="section">
+        <h2>Flooding & Suspicious Attacks</h2>
+        <p class="critical">YARA found {{ yara_count }} malicious payload matches</p>
+    </div>
+
+    <!-- Flow Details with Source → Destination -->
+    <div class="section">
+        <h2>Top Flow Details (Source IP → Destination IP)</h2>
+        <table class="flow-table">
+            <tr>
+                <th>#</th>
+                <th>Source IP</th>
+                <th>Destination IP</th>
+                <th>Packets</th>
+                <th>Duration (s)</th>
+                <th>SYN Ratio</th>
+                <th>Packets/sec</th>
+            </tr>
+            {% for flow in results.flow_features[:30] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ flow.srcIP|default(flow.get('sourceIP')|default('N/A')) }}</td>
+                <td>{{ flow.dstIP|default(flow.get('destinationIP')|default('N/A')) }}</td>
+                <td>{{ flow.totalPackets|default(flow.get('totalFwdPackets', 0) + flow.get('totalBwdPackets', 0)) }}</td>
+                <td>{{ (flow.flowDuration / 1000000)|round(2) if flow.flowDuration else 'N/A' }}</td>
+                <td>{{ flow.synFlagRatio|default(0)|round(3) }}</td>
+                <td>{{ flow.flowPacketsPerSec|default(0)|round(1) }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <p style="color:#666; font-size:0.9em;">Showing top 30 flows out of {{ results.flow_features|length }} total flows.</p>
+    </div>
+
+    <!-- Charts -->
+  <!--  <div class="section">
+        <h2>Attack Distribution</h2>
+        <div style="height:320px;">
+            <canvas id="attackChart"></canvas>
+        </div>
+    </div>
+-->
+    <!-- Timeline -->
+    <div class="section">
+        <h2>Incident Timeline</h2>
+        <table>
+            <tr><th>Time</th><th>Severity</th><th>Event</th></tr>
+            {% for event in results.timeline %}
+            <tr>
+                <td>{{ event.timestamp[:19].replace('T',' ') }}</td>
+                <td>{{ event.severity }}</td>
+                <td>{{ event.description }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <script>
+        new Chart(document.getElementById('attackChart'), {
+            type: 'pie',
+            data: {
+                labels: [{% for type in results.detected_attacks.attacks|map(attribute='type')|unique %}'{{ type }}',{% endfor %}],
+                datasets: [{
+                    data: [{% for type in results.detected_attacks.attacks|map(attribute='type')|unique %}{% set count = results.detected_attacks.attacks|selectattr('type','equalto',type)|list|length %}{{ count }},{% endfor %}],
+                    backgroundColor: ['#b91c1c', '#ea580c', '#f59e0b', '#10b981', '#3b82f6']
+                }]
+            },
+            options: { responsive: true }
+        });
+    </script>
+</body>
+</html>

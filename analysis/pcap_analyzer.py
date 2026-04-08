@@ -49,11 +49,11 @@ from .flow_feature_analyzer import build_flows_and_extract_features
 
 def analyze_pcap_full_features(pcap_path):
     """Runs your custom FeatureExtractor on the PCAP"""
-    print("🚀 Running FULL feature extraction using FeatureExtractor...")
+    print(" Running FULL feature extraction using FeatureExtractor...")
     try:
         return build_flows_and_extract_features(pcap_path)
     except Exception as e:
-        print(f"❌ Error in full feature extraction: {e}")
+        print(f" Error in full feature extraction: {e}")
         return {
             "total_flows": 0,
             "flow_features": [],

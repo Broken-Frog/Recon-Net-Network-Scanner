@@ -9,7 +9,7 @@ def run_zeek_analysis(pcap_path, output_dir=None):
         output_dir = Path("zeek_output")
     output_dir.mkdir(exist_ok=True, parents=True)
 
-    print(f"🚀 Running Zeek analysis on {pcap_path.name}...")
+    print(f" Running Zeek analysis on {pcap_path.name}...")
 
     zeek_bin = "/opt/zeek/bin/zeek"
     pcap_path = Path(pcap_path).resolve()
@@ -27,9 +27,9 @@ def run_zeek_analysis(pcap_path, output_dir=None):
             text=True,
             timeout=180
         )
-        print("Return code:", result.returncode)
-        print("STDOUT:\n", result.stdout)
-        print("STDERR:\n", result.stderr)
+       # print("Return code:", result.returncode)
+       # print("STDOUT:\n", result.stdout)
+        #print("STDERR:\n", result.stderr)
 
         if result.returncode != 0:
             return {
@@ -53,7 +53,7 @@ def run_zeek_analysis(pcap_path, output_dir=None):
                         records = df.to_dict(orient="records")
                         logs[log_name.replace(".log", "")] = records[:400]
                         parsed_count += len(records)
-                        print(f"     ✓ Parsed {log_name} → {len(records)} records")
+                       # print(f"     ✓ Parsed {log_name} → {len(records)} records")
                     except Exception as e:
                         logs[log_name.replace(".log", "")] = {"error": str(e)}
                 else:
@@ -62,9 +62,9 @@ def run_zeek_analysis(pcap_path, output_dir=None):
                 logs[log_name.replace(".log", "")] = {"status": "missing"}
 
         if parsed_count == 0:
-            print("⚠️ Zeek ran but produced no usable logs. Trying broader configuration next time.")
+            print(" Zeek ran but produced no usable logs. Trying broader configuration next time.")
         else:
-            print(f"✅ Zeek completed successfully - {parsed_count} total log entries parsed")
+            print(f" Zeek completed successfully - {parsed_count} total log entries parsed")
 
         return {
             "status": "success",
@@ -75,5 +75,5 @@ def run_zeek_analysis(pcap_path, output_dir=None):
         }
 
     except Exception as e:
-        print(f"❌ Zeek error: {e}")
+        print(f" Zeek error: {e}")
         return {"status": "error", "message": str(e)}

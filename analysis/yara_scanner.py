@@ -21,23 +21,23 @@ class YARAScanner:
 
         try:
             self.rules = yara.compile(str(rules_file))
-            print("✅ YARA rules loaded successfully")
+            print(" YARA rules loaded successfully")
         except Exception as e:
-            print(f"❌ YARA compile error: {e}")
+            print(f"YARA compile error: {e}")
             self.rules = None
 
     def create_default_network_rules(self, rules_path):
         """Create a strong set of YARA rules for common network attacks & malware"""
         rules_content = '''
 /*
- * ATLAS Network Forensics YARA Rules
+ * Recom-Net Network Forensics YARA Rules
  * Focused on PCAP-extracted payloads, C2, DDoS artifacts, and malware
  */
 
 rule SYN_Flood_Pattern {
     meta:
         description = "High SYN packet patterns or reflection attack artifacts"
-        author = "ATLAS"
+        author = "Recom-Net"
         severity = "High"
     strings:
         $syn_flood = { 02 00 00 00 }  // Common in SYN packets (flags)
@@ -114,7 +114,7 @@ rule UDP_Flood_Artifact {
 '''
         with open(rules_path, "w") as f:
             f.write(rules_content.strip())
-        print(f"✅ Default YARA rules created at {rules_path}")
+        print(f"Default YARA rules created at {rules_path}")
 
     def scan_extracted_payload(self, payload_data: bytes, filename: str = "payload"):
         """Scan a single extracted payload (bytes)"""
@@ -134,7 +134,7 @@ rule UDP_Flood_Artifact {
 
     def scan_pcap_for_payloads(self, pcap_path):
         """Extract TCP/HTTP payloads from PCAP and scan with YARA"""
-        print("🔍 Extracting payloads from PCAP for YARA scanning...")
+        print(" Extracting payloads from PCAP for YARA scanning...")
         packets = rdpcap(str(pcap_path))
         yara_results = []
 

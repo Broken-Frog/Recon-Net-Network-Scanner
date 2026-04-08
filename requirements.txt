@@ -4,7 +4,9 @@ nfstream
 yara-python
 python-evtx
 pandas
-reportlab
+#reportlab
 tqdm
 python-dotenv
 pefile
+weasyprint 
+jinja2

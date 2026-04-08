@@ -1,74 +1,35 @@
 # reports/report_generator.py
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
+import json
 from pathlib import Path
 from datetime import datetime
+from jinja2 import Environment, FileSystemLoader
+from weasyprint import HTML
 
-def generate_pdf_report(scan_id, results):
-    report_path = Path("output/reports") / f"{scan_id}_ATLAS_Forensic_Report.pdf"
-    c = canvas.Canvas(str(report_path), pagesize=A4)
-    width, height = A4
-    y = height - 70
 
-    # Header
-    c.setFont("Helvetica-Bold", 19)
-    c.drawString(50, y, "ATLAS NETWORK FORENSICS REPORT")
-    y -= 30
-    c.setFont("Helvetica", 11)
-    c.drawString(50, y, f"Case ID: {scan_id} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    y -= 45
+def generate_pdf_from_json(json_path: str):
+    json_path = Path(json_path)
+    if not json_path.exists():
+        print(f" JSON not found: {json_path}")
+        return None
 
-    # Attack Summary (same as before - shortened for space)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "ATTACK SUMMARY")
-    y -= 25
-    # ... (keep your attack table here - I omitted for brevity)
+    with open(json_path, 'r', encoding='utf-8') as f:
+        results = json.load(f)
 
-    y -= 30
+    scan_id = results.get("scan_id", "unknown")
 
-    # ==================== INCIDENT TIMELINE ====================
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "INCIDENT TIMELINE")
-    y -= 28
+    env = Environment(loader=FileSystemLoader("reports/templates"))
+    template = env.get_template("forensic_report.html")
 
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(60, y, "Time")
-    c.drawString(220, y, "Event Type")
-    c.drawString(380, y, "Description")
-    y -= 16
-    c.line(50, y, width - 50, y)
+    html_content = template.render(
+        results=results,
+        scan_id=scan_id,
+        generated_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        yara_count=len(results.get("yara_matches", []))
+    )
 
-    timeline = results.get("timeline", [])
-    c.setFont("Helvetica", 9)
-    for event in timeline[:12]:   # Limit to avoid too many pages
-        y -= 20
-        time_str = event.get("timestamp", "")[11:19] if len(event.get("timestamp", "")) > 10 else event.get("timestamp", "")
-        c.drawString(60, y, time_str)
-        c.drawString(220, y, event.get("eventType", ""))
-        desc = event.get("description", "")[:80]
-        c.drawString(380, y, desc)
-        if y < 120:
-            c.showPage()
-            y = height - 70
+    report_path = Path("output/reports") / f"{scan_id}_Recom-Net_Detailed_Report.pdf"
 
-    y -= 30
+    HTML(string=html_content).write_pdf(report_path)
 
-    # Flow Statistics + Top IPs + Forensic Indicators (keep as before)
-    # ... (you can keep the previous sections)
-
-    # Final Summary
-    y -= 20
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "SUMMARY")
-    y -= 25
-    c.setFont("Helvetica", 12)
-    c.drawString(60, y, f"Risk Level: {results.get('executiveSummary', {}).get('riskLevel', 'LOW')}")
-    y -= 18
-    c.drawString(60, y, f"Total Attacks Detected: {len(results.get('detected_attacks', {}).get('attacks', []))}")
-
-    c.setFont("Helvetica", 8)
-    c.drawString(50, 30, f"ATLAS Network Forensics Platform • Detailed Report")
-
-    c.save()
-    return report_path
+   # print(f"Rich PDF with charts generated: {report_path}")
+    return str(report_path)
