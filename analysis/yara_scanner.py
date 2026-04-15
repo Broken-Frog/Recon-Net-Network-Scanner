@@ -1,149 +1,140 @@
-# analysis/yara_scanner.py
 import yara
-import os
 from pathlib import Path
-from scapy.all import rdpcap, TCP, Raw, IP
+from scapy.all import rdpcap, TCP, Raw
+import time
+from functools import lru_cache
+from typing import List, Dict, Any
+
+
 
 class YARAScanner:
-    def __init__(self):
-        self.rules = None
-        self.load_rules()
+    """
+    Optimized YARA Scanner with:
+    - Singleton pattern (rules compiled only once)
+    - Rule caching
+    - Efficient payload extraction
+    - Performance metrics
+    """
 
-    def load_rules(self):
-        """Load or compile YARA rules for network forensics"""
+    _instance = None
+    _rules = None
+    _rules_loaded = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not self._rules_loaded:
+            self.load_rules()
+
+    @classmethod
+    def load_rules(cls):
+        """Load and compile all YARA rules only once"""
+        if cls._rules_loaded:
+            return
+
         rules_dir = Path("analysis/yara_rules")
         rules_dir.mkdir(exist_ok=True)
 
-        # Create a default rules file if it doesn't exist
-        rules_file = rules_dir / "network_forensics.yar"
-        if not rules_file.exists():
-            self.create_default_network_rules(rules_file)
+        rule_files = list(rules_dir.glob("*.yar"))
+        #print("Current Working Dir:", Path.cwd())    this is used for debugging to know whether there is any
+        #print("Looking for rules in:", rules_dir.resolve())    bug in directory parsing. relative path issues.
+        #print("Exists?", rules_dir.exists())
 
+        if not rule_files:
+            print("No YARA rules found. Creating default rules...")
+            cls._create_default_rules(rules_dir / "network_forensics.yar")
+            rule_files = list(rules_dir.glob("*.yar"))
+
+        print(f"Loading {len(rule_files)} YARA rule files...")
+
+        start_time = time.time()
+        
         try:
-            self.rules = yara.compile(str(rules_file))
-            print(" YARA rules loaded successfully")
+            filepaths = {f.stem: str(f) for f in rule_files}
+            cls._rules = yara.compile(filepaths=filepaths)
+            load_time = time.time() - start_time
+            print(f"YARA rules loaded successfully in {load_time:.2f}s ({len(rule_files)} files)")
+            cls._rules_loaded = True
         except Exception as e:
-            print(f"YARA compile error: {e}")
-            self.rules = None
+            print(f"Failed to compile YARA rules: {e}")
+            cls._rules = None
 
-    def create_default_network_rules(self, rules_path):
-        """Create a strong set of YARA rules for common network attacks & malware"""
-        rules_content = '''
-/*
- * Recom-Net Network Forensics YARA Rules
- * Focused on PCAP-extracted payloads, C2, DDoS artifacts, and malware
+    @staticmethod
+    def _create_default_rules(rules_path: Path):
+        """Create minimal default rules if none exist"""
+        default_rules = '''/*
+ * Default Recon-Net YARA Rules
  */
 
-rule SYN_Flood_Pattern {
+rule Default_Test_Rule {
     meta:
-        description = "High SYN packet patterns or reflection attack artifacts"
-        author = "Recom-Net"
-        severity = "High"
-    strings:
-        $syn_flood = { 02 00 00 00 }  // Common in SYN packets (flags)
-        $reflection = "SYNACK" nocase
+        description = "Default test rule"
+        severity = "Low"
     condition:
-        any of them and filesize < 5MB
+        filesize > 0
 }
-
-rule C2_Beaconing {
-    meta:
-        description = "Common C2 beacon patterns (Cobalt Strike, Empire, Sliver, etc.)"
-        severity = "High"
-    strings:
-        $beacon1 = "beacon" nocase
-        $beacon2 = "/api/" nocase
-        $c2 = "c2" nocase
-        $http_post = "POST /" nocase
-        $sliver = "sliver" nocase
-    condition:
-        2 of them
-}
-
-rule Data_Exfiltration {
-    meta:
-        description = "Large base64 or encoded data exfiltration"
-        severity = "Medium"
-    strings:
-        $base64_long = /[A-Za-z0-9+\/]{100,}={0,2}/
-        $exfil = "exfil" nocase
-        $upload = "upload" nocase
-    condition:
-        $base64_long and filesize > 10KB
-}
-
-rule Malware_Downloader {
-    meta:
-        description = "Common malware downloader patterns"
-        severity = "High"
-    strings:
-        $powershell = "powershell" nocase
-        $cmd = "cmd.exe" nocase
-        $wget = "wget " nocase
-        $curl = "curl " nocase
-        $exe = ".exe" nocase
-    condition:
-        2 of them
-}
-
-rule Port_Scan_Pattern {
-    meta:
-        description = "Port scanning behavior in payloads"
-        severity = "Medium"
-    strings:
-        $nmap = "nmap" nocase
-        $scan = "scan" nocase
-        $port = "port " nocase
-    condition:
-        any of them
-}
-
-rule UDP_Flood_Artifact {
-    meta:
-        description = "UDP amplification or flood related strings"
-        severity = "High"
-    strings:
-        $udp_flood = "UDP" nocase
-        $amplification = "amplification" nocase
-        $dns = "DNS" nocase fullword
-    condition:
-        2 of them
-}
-
-/* Add more rules here as you find new IOCs */
 '''
-        with open(rules_path, "w") as f:
-            f.write(rules_content.strip())
-        print(f"Default YARA rules created at {rules_path}")
+        rules_path.write_text(default_rules.strip())
+        print(f"Created default rules: {rules_path}")
 
-    def scan_extracted_payload(self, payload_data: bytes, filename: str = "payload"):
-        """Scan a single extracted payload (bytes)"""
-        if not self.rules or len(payload_data) == 0:
+    def scan_extracted_payload(self, payload_data: bytes, filename: str = "payload") -> List[Dict]:
+        """Scan a single payload with all loaded rules"""
+        if not self._rules or len(payload_data) < 40:
             return []
 
         try:
-            matches = self.rules.match(data=payload_data)
+            matches = self._rules.match(data=payload_data)
             return [{
                 "rule": match.rule,
-                "tags": match.tags,
-                "meta": match.meta,
-                "payload_name": filename
+                "severity": match.meta.get("severity", "MEDIUM"),
+                "description": match.meta.get("description", "No description"),
+                "payload_name": filename,
+                "matched_strings": [s.identifier for s in match.strings[:5]]  # Limit output
             } for match in matches]
-        except:
+        except Exception:
             return []
 
-    def scan_pcap_for_payloads(self, pcap_path):
-        """Extract TCP/HTTP payloads from PCAP and scan with YARA"""
-        print(" Extracting payloads from PCAP for YARA scanning...")
-        packets = rdpcap(str(pcap_path))
-        yara_results = []
+    def scan_pcap_for_payloads(self, pcap_path: str, min_payload_size: int = 60) -> List[Dict]:
+        """Optimized PCAP scanning with progress feedback"""
+        pcap_path = Path(pcap_path)
+        print(f"Scanning PCAP: {pcap_path.name} for malicious payloads...")
 
-        for i, pkt in enumerate(packets):
-            if TCP in pkt and Raw in pkt:
-                payload = bytes(pkt[Raw])
-                if len(payload) > 50:  # Only scan meaningful payloads
-                    matches = self.scan_extracted_payload(payload, f"packet_{i}")
-                    if matches:
-                        yara_results.extend(matches)
+        start_time = time.time()
+        yara_results = []
+        payload_count = 0
+        match_count = 0
+
+        try:
+            packets = rdpcap(str(pcap_path))
+            total_packets = len(packets)
+
+            for i, pkt in enumerate(packets):
+                if i % 5000 == 0 and i > 0:  # Progress every 5000 packets
+                    print(f"   Processed {i:,}/{total_packets:,} packets...")
+
+                if TCP in pkt and Raw in pkt:
+                    payload = bytes(pkt[Raw])
+                    if len(payload) >= min_payload_size:
+                        matches = self.scan_extracted_payload(payload, f"packet_{i}")
+                        if matches:
+                            yara_results.extend(matches)
+                            match_count += len(matches)
+                        payload_count += 1
+
+        except Exception as e:
+            print(f"Error reading PCAP: {e}")
+            return []
+
+        elapsed = time.time() - start_time
+        print(f"YARA scan completed in {elapsed:.2f}s")
+        print(f"   Payloads scanned : {payload_count:,}")
+        print(f"   YARA matches     : {match_count:,}")
 
         return yara_results
+
+
+# Optional: Global singleton instance for even faster access
+yara_scanner = YARAScanner()
